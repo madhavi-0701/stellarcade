@@ -143,7 +143,8 @@ impl VoteEscrow {
         let time_remaining = if now >= record.unlock_time {
             0
         } else {
-            (record.unlock_time - now) as i64
+            let diff = record.unlock_time - now;
+            i64::try_from(diff).unwrap_or(i64::MAX)
         };
 
         UnlockPressure {
@@ -264,5 +265,23 @@ mod test {
 
         let amt = client.unlock(&locker, &1);
         assert_eq!(amt, 500);
+    }
+
+    #[test]
+    fn test_unlock_pressure_distant_unlock_does_not_wrap() {
+        let env = Env::default();
+        env.ledger().set_timestamp(1000);
+        let (_admin, client) = setup(&env);
+        let locker = Address::generate(&env);
+
+        // Distant future timestamp: unlock_time - now > i64::MAX
+        let distant_future = 1000u64 + (i64::MAX as u64) + 1_000_000u64;
+        client.lock(&locker, &99, &500, &distant_future);
+
+        let pressure = client.unlock_pressure(&99);
+        assert!(pressure.exists);
+        assert_eq!(pressure.status, LockStatus::Locked);
+        assert!(pressure.time_remaining > 0);
+        assert_eq!(pressure.time_remaining, i64::MAX);
     }
 }

@@ -22,7 +22,7 @@ impl VoucherEscrow {
         storage::set_admin(&env, &admin);
     }
 
-   
+    /// Reserve a voucher in escrow. Admin only.
     pub fn reserve(
         env: Env,
         admin: Address,
@@ -63,7 +63,7 @@ impl VoucherEscrow {
         voucher_id
     }
 
-    
+    /// Claim an escrowed voucher. Caller must be the holder.
     pub fn claim(env: Env, holder: Address, voucher_id: u64) -> i128 {
         holder.require_auth();
         let mut record = storage::get_escrow(&env, voucher_id).expect("Escrow not found");
@@ -85,12 +85,12 @@ impl VoucherEscrow {
         record.reserved_amount
     }
 
-    
+    /// Reserved voucher summary: total reserved, active/expired/claimed counts.
     pub fn reserved_voucher_summary(env: Env) -> ReservedVoucherSummary {
         storage::get_summary(&env)
     }
 
-   
+    /// Expiry pressure for a specific voucher: ledgers remaining, expired flag.
     pub fn expiry_pressure(env: Env, voucher_id: u64) -> ExpiryPressure {
         let current_ledger = env.ledger().sequence();
         match storage::get_escrow(&env, voucher_id) {
