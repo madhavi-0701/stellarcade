@@ -18,20 +18,28 @@
 const { client } = require('../config/redis');
 const logger = require('../utils/logger');
 
+const parsePositiveInt = (val, defaultVal, min = 1, max = 1_000_000) => {
+  if (val === undefined || val === null || val === '') return defaultVal;
+  if (typeof val === 'string' && !/^\d+$/.test(val.trim())) return defaultVal;
+  const num = Number(val);
+  if (!Number.isSafeInteger(num) || num < min || num > max) return defaultVal;
+  return num;
+};
+
 const policies = {
   wallet: {
-    max: () => parseInt(process.env.RATE_LIMIT_WALLET_MAX, 10) || 10,
-    window: () => parseInt(process.env.RATE_LIMIT_WALLET_WINDOW, 10) || 60,
+    max: () => parsePositiveInt(process.env.RATE_LIMIT_WALLET_MAX, 10),
+    window: () => parsePositiveInt(process.env.RATE_LIMIT_WALLET_WINDOW, 60),
     onStoreError: 'allow',
   },
   auth: {
-    max: () => parseInt(process.env.RATE_LIMIT_AUTH_MAX, 10) || 20,
-    window: () => parseInt(process.env.RATE_LIMIT_AUTH_WINDOW, 10) || 60,
+    max: () => parsePositiveInt(process.env.RATE_LIMIT_AUTH_MAX, 20),
+    window: () => parsePositiveInt(process.env.RATE_LIMIT_AUTH_WINDOW, 60),
     onStoreError: 'deny',
   },
   games: {
-    max: () => parseInt(process.env.RATE_LIMIT_GAMES_MAX, 10) || 60,
-    window: () => parseInt(process.env.RATE_LIMIT_GAMES_WINDOW, 10) || 60,
+    max: () => parsePositiveInt(process.env.RATE_LIMIT_GAMES_MAX, 60),
+    window: () => parsePositiveInt(process.env.RATE_LIMIT_GAMES_WINDOW, 60),
     onStoreError: 'allow',
   },
 };

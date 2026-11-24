@@ -148,3 +148,27 @@ fn test_reward_gap_initialized_carries_config() {
     assert!(matches!(gap.config, OptionalRedeemerConfig::Some(_)));
     assert_eq!(gap.reward_gap, 0);
 }
+
+#[test]
+fn test_verifier_rotation_cannot_revive_redeemed() {
+    let s = setup();
+    let user = Address::generate(&s.env);
+
+    // Mark complete and redeem with initial verifier
+    s.client.mark_complete(&s.verifier, &user, &77);
+    s.client.redeem(&user, &77);
+    assert!(s.client.has_redeemed(&user, &77));
+
+    // Double redemption fails
+    assert_eq!(
+        s.client.try_redeem(&user, &77),
+        Err(Ok(Error::AlreadyRedeemed))
+    );
+
+    // Re-marking already redeemed quest cannot revive redemption
+    let _ = s.client.try_mark_complete(&s.verifier, &user, &77);
+    assert_eq!(
+        s.client.try_redeem(&user, &77),
+        Err(Ok(Error::AlreadyRedeemed))
+    );
+}

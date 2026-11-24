@@ -139,3 +139,42 @@ fn cooldown_window_accessor_closed_campaign_shows_zero_seconds_until_closed() {
     assert_eq!(cooldown.seconds_until_closed, 0);
     assert!(!cooldown.can_record_claims);
 }
+
+#[test]
+fn test_campaign_edits_preserve_pending_commitments() {
+    let env = Env::default();
+    env.mock_all_auths();
+    env.ledger().with_mut(|ledger| ledger.timestamp = 150);
+
+    let (client, admin, user) = setup(&env);
+    let user2 = Address::generate(&env);
+
+    // Initial campaign with budget 1000
+    client.upsert_campaign(&admin, &10, &1_000, &100, &300, &false);
+    client.record_claim(&admin, &10, &user, &300);
+    client.record_claim(&admin, &10, &user2, &200);
+
+    let ex1 = client.budget_exhaustion(&10);
+    assert_eq!(ex1.committed_budget, 500);
+    assert_eq!(ex1.remaining_budget, 500);
+
+    // Edit campaign: expand budget and extend window
+    client.upsert_campaign(&admin, &10, &1_500, &100, &400, &false);
+
+    let ex2 = client.budget_exhaustion(&10);
+    assert_eq!(ex2.committed_budget, 500);
+    assert_eq!(ex2.remaining_budget, 1_000);
+
+    let win = client.claim_window_summary(&10);
+    assert_eq!(win.pending_claimants, 2);
+    assert_eq!(win.budget, 1_500);
+    assert_eq!(win.remaining_budget, 1_000);
+
+    // Claim preserved commitments
+    assert_eq!(client.claim(&user, &10), 300);
+    assert_eq!(client.claim(&user2, &10), 200);
+
+    let ex3 = client.budget_exhaustion(&10);
+    assert_eq!(ex3.claimed_budget, 500);
+    assert_eq!(ex3.remaining_budget, 1_000);
+}
